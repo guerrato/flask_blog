@@ -11,7 +11,7 @@ app.config['MYSQL_HOST'] = 'database.mysql'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = 'root'
 app.config['MYSQL_DB'] = 'flask_blog'
-app.config['MYSQL_CURSORCALSS'] = 'DictCursor'
+app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 mysql = MySQL(app)
 
@@ -37,11 +37,11 @@ class RegisterForm(Form):
     name = StringField('Name', validators=[validators.Length(min=1, max=256), validators.input_required()])
     username  = StringField('Username', validators=[validators.Length(min=4, max=256)])
     email  = StringField('E-mail', validators=[validators.Length(min=6, max=256)])
+    confirm = PasswordField('Confirm Password')
     password  = PasswordField('Password', validators=[
         validators.DataRequired(),
         validators.EqualTo('confirm', message='Passwords do not match')
     ])
-    confirm = PasswordField('Confirm Password')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -66,6 +66,29 @@ def register():
         return redirect(url_for('index'))
     
     return render_template('register.html', form=form)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if (request.method == 'POST'):
+        username = request.form['username']
+        password_candidate = request.form['password']
+
+        cur = mysql.connection.cursor()
+
+        result = cur.execute("SELECT * FROM `users` WHERE `username` = %s", [username])
+
+        if result > 0:
+            data = cur.fetchone()
+            password = data['password']
+
+            if sha256_crypt.verify(password_candidate, password):
+                app.logger.info('PASSWORD MATCHED')
+            else:
+                app.logger.info('PASSWORD NOT MATCHED')
+        else:
+            render_template('login.html')
+
+    return render_template('login.html')
 
 if __name__ == '__main__':
     app.secret_key = 'AC643BA6F0DEFEC18F96C9DF272E50A9441CC1E5D7D91'
